@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Dissector</title>
+
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@700,600,500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --primary:        #6366F1;
+  --primary-hover:  #4F46E5;
+  --primary-soft:   rgba(99,102,241,0.12);
+  --primary-glow:   rgba(99,102,241,0.35);
+  --secondary:      #20970B;
+  --neutral:        #9C9C9C;
+  --bg:             #FAFAFA;
+  --surface:        #FFFFFF;
+  --text-primary:   #0A0A0A;
+  --text-secondary: #6B6B6B;
+  --border:         #E8E8EC;
+  --success:        #10B981;
+  --warning:        #F59E0B;
+  --error:          #EF4444;
+
+  --font-display: 'General Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-body:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-card-hover: 0 8px 30px rgba(0,0,0,0.08);
+  --shadow-primary:    0 4px 12px var(--primary-glow);
+  --shadow-popover:    0 12px 40px rgba(0,0,0,0.12);
+  --ring:              0 0 0 3px var(--primary-soft);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; font-size: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ─── Top bar ─────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+.brand .accent { color: var(--secondary); }
+.topbar .meta-shortcut {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: color 150ms, background 150ms;
+}
+.back-link:hover { color: var(--text-primary); background: var(--bg); }
+.back-link svg { width: 14px; height: 14px; }
+.save-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.save-status.dirty { color: var(--warning); }
+.save-status.saving { color: var(--primary); }
+.save-status.saved { color: var(--success); }
+
+/* ─── Metadata row ───────────────────────────── */
+.metadata {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 0 16px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.field-row { display: flex; align-items: center; gap: 8px; }
+
+.input, .select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+  min-width: 0;
+}
+.input:focus, .select:focus { border-color: var(--primary); box-shadow: var(--ring); }
+.input--song { min-width: 280px; flex: 1; }
+.input--bpm  { width: 90px; }
+.input--num  { width: 90px; font-family: var(--font-mono); }
+.select { padding-right: 32px; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236B6B6B' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 14px;
+  height: 38px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: transform 150ms, box-shadow 150ms, background 150ms, border-color 150ms, color 150ms;
+  white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn--primary { background: var(--primary); color: #fff; }
+.btn--primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-primary); }
+.btn--secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
+.btn--secondary:hover { border-color: var(--text-primary); }
+.btn--ghost { background: transparent; color: var(--text-secondary); }
+.btn--ghost:hover { color: var(--text-primary); }
+.btn--danger { background: transparent; color: var(--error); border: 1px solid var(--error); }
+.btn--danger:hover { background: rgba(239,68,68,0.06); }
+.btn--small { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn--icon { width: 38px; padding: 0; justify-content: center; }
+.btn--icon.btn--small { width: 32px; }
+
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+/* ─── Toolbar ────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: background 150ms, color 150ms;
+}
+.tool-btn:hover { color: var(--text-primary); }
+.tool-btn[aria-pressed="true"] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25);
+}
+.tool-btn svg { width: 14px; height: 14px; }
+
+.toolbar-spacer { flex: 1; }
+
+.transport { display: flex; align-items: center; gap: 6px; }
+.transport .btn--icon svg { width: 14px; height: 14px; }
+.transport .btn--icon.active { color: var(--primary); border-color: var(--primary); }
+
+.time-readout {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 0 12px;
+  border-left: 1px solid var(--border);
+  margin-left: 4px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.02em;
+}
+.time-readout .now { color: var(--text-primary); }
+
+/* ─── Waveform stage ─────────────────────────── */
+.stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  overflow: hidden;
+}
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dropzone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  text-align: center;
+  padding: 32px;
+}
+.dropzone .icon { width: 40px; height: 40px; opacity: 0.6; }
+.dropzone .title { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); }
+.dropzone .sub { font-size: 13px; }
+.dropzone .browse { pointer-events: auto; margin-top: 4px; }
+
+.stage[data-state="loaded"] .dropzone { display: none; }
+.stage[data-dragging="true"] { border-color: var(--primary); background: var(--primary-soft); }
+
+.wave-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.overlays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.overlays > * { position: absolute; }
+.stage[data-state="loaded"] .overlays::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% / 6);
+  height: 1px;
+  background: var(--border);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.section-region {
+  top: calc(100% / 6);
+  bottom: 0;
+  pointer-events: auto;
+  --accent: #6366F1;
+  --opacity: 0.10;
+  border-left: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) calc(var(--opacity) * 100%), transparent);
+  cursor: pointer;
+  transition: background 150ms;
+}
+.section-region.selected { --opacity: 0.20; box-shadow: inset 0 0 0 2px var(--accent); }
+.section-region .label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.section-region .handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: transparent;
+}
+.section-region .handle.left { left: -3px; }
+.section-region .handle.right { right: -3px; }
+.section-region .handle:hover { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+
+.loop-region {
+  top: calc(100% / 6);
+  bottom: 0;
+  pointer-events: auto;
+  background: rgba(99,102,241,0.10);
+  border-left: 2px solid var(--primary);
+  border-right: 2px solid var(--primary);
+  cursor: pointer;
+}
+.loop-region.selected { background: rgba(99,102,241,0.18); }
+.loop-region .label {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.loop-region .handle { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.loop-region .handle.left { left: -3px; }
+.loop-region .handle.right { right: -3px; }
+
+.marker {
+  top: calc(100% / 12);
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  background: var(--primary);
+  border: 2px solid var(--surface);
+  border-radius: 9999px;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  z-index: 2;
+}
+.marker:hover { transform: scale(1.2); }
+.marker.selected { background: var(--primary-hover); box-shadow: var(--ring); transform: scale(1.2); }
+
+.playhead {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-primary);
+  pointer-events: none;
+  display: none;
+}
+.stage[data-state="loaded"] .playhead { display: block; }
+.playhead::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  background: var(--text-primary);
+  border-radius: 9999px;
+}
+
+.drag-rect {
+  top: calc(100% / 6);
+  bottom: 0;
+  background: var(--primary-soft);
+  border-left: 1px dashed var(--primary);
+  border-right: 1px dashed var(--primary);
+  pointer-events: none;
+  display: none;
+}
+
+.cursor-crosshair { cursor: crosshair; }
+.cursor-pointer { cursor: pointer; }
+.cursor-default { cursor: default; }
+
+/* ─── Sections strip ─────────────────────────── */
+.sections-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 36px;
+}
+.strip-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-right: 4px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 9999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.chip:hover { color: var(--text-primary); }
+.chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+.chip .swatch { width: 8px; height: 8px; border-radius: 9999px; background: var(--accent, currentColor); flex-shrink: 0; }
+.chip .time { font-family: var(--font-mono); font-size: 11px; opacity: 0.8; }
+.empty-hint { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+
+/* ─── Notes editor ───────────────────────────── */
+.notes {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 200px;
+  flex-shrink: 0;
+}
+.notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.notes-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notes-title .pip {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--neutral);
+}
+.notes-title.section .pip { border-radius: 3px; }
+.notes-title .meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.notes-actions { display: flex; gap: 6px; }
+.notes-textarea {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.notes-textarea:focus { border-color: var(--primary); box-shadow: var(--ring); }
+.notes-textarea:disabled { background: var(--bg); color: var(--text-secondary); cursor: not-allowed; }
+
+.notes[data-state="empty"] .notes-actions,
+.notes[data-state="empty"] .notes-title .meta { display: none; }
+
+/* ─── Toast ──────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text-primary);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-popover);
+  opacity: 0;
+  transition: opacity 200ms, transform 200ms;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ─── Hidden file input ──────────────────────── */
+.file-input { position: absolute; left: -9999px; opacity: 0; width: 1px; height: 1px; }
+
+/* ─── Keyboard hint ──────────────────────────── */
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-secondary);
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a class="back-link" href="/" title="All projects">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3L4 8l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Projects
+      </a>
+      <a class="brand" href="/">Song <span class="accent">Dissector</span></a>
+    </div>
+    <div class="topbar-right">
+      <span class="save-status" id="saveStatus"></span>
+      <span class="meta-shortcut">space play · L loop · ⌫ delete · ⌘S save</span>
+      <button class="btn btn--secondary btn--small" id="btnSave" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;"><path d="M3 3h8l3 3v7a1 1 0 01-1 1H3a1 1 0 01-1-1V4a1 1 0 011-1z" stroke-linejoin="round"/><path d="M5 3v3h5V3M5 9h6v4H5z" stroke-linejoin="round"/></svg>
+        Save
+      </button>
+    </div>
+  </header>
+
+  <!-- Metadata -->
+  <section class="metadata">
+    <div class="field" style="flex: 1;">
+      <label class="field-label" for="songName">Song</label>
+      <div class="field-row">
+        <input class="input input--song" id="songName" type="text" placeholder="Untitled track">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="bpmInput">BPM</label>
+      <div class="field-row">
+        <input class="input input--num" id="bpmInput" type="number" min="20" max="300" step="0.1" placeholder="—">
+        <button class="btn btn--secondary btn--small" id="detectBpm" title="Auto-detect BPM" disabled>Detect</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label" for="keyInput">Key</label>
+      <div class="field-row">
+        <select class="select" id="keyInput">
+          <option value="">—</option>
+          <option>C major</option><option>G major</option><option>D major</option><option>A major</option>
+          <option>E major</option><option>B major</option><option>F# major</option><option>C# major</option>
+          <option>F major</option><option>Bb major</option><option>Eb major</option><option>Ab major</option>
+          <option>Db major</option><option>Gb major</option><option>Cb major</option>
+          <option>A minor</option><option>E minor</option><option>B minor</option><option>F# minor</option>
+          <option>C# minor</option><option>G# minor</option><option>D# minor</option><option>A# minor</option>
+          <option>D minor</option><option>G minor</option><option>C minor</option><option>F minor</option>
+          <option>Bb minor</option><option>Eb minor</option><option>Ab minor</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toolbar -->
+  <section class="toolbar">
+    <div class="tool-group" role="tablist" aria-label="Tools">
+      <button class="tool-btn" data-tool="select" aria-pressed="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2l10 5-4 1.5-1.5 4z" stroke-linejoin="round"/></svg>
+        Select
+      </button>
+      <button class="tool-btn" data-tool="section" aria-pressed="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/></svg>
+        Section
+      </button>
+      <button class="tool-btn" data-tool="loop" aria-pressed="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h6a3 3 0 013 3v4a3 3 0 01-3 3H5a3 3 0 01-3-3V8" stroke-linecap="round"/><path d="M3 5l-1-2 2-1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Loop
+      </button>
+      <button class="tool-btn" data-tool="marker" aria-pressed="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5" fill="currentColor"/><circle cx="8" cy="8" r="5.5"/></svg>
+        Marker
+      </button>
+    </div>
+
+    <div class="toolbar-spacer"></div>
+
+    <div class="transport">
+      <button class="btn btn--secondary btn--icon btn--small" id="btnPlay" title="Play / Pause (Space)" disabled>
+        <svg id="playIcon" viewBox="0 0 16 16" fill="currentColor"><path d="M4 3l9 5-9 5z"/></svg>
+      </button>
+      <button class="btn btn--secondary btn--icon btn--small" id="btnLoopMode" title="Toggle loop playback (L)" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h6a3 3 0 013 3v4a3 3 0 01-3 3H5a3 3 0 01-3-3V8" stroke-linecap="round"/><path d="M3 5l-1-2 2-1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="time-readout"><span class="now" id="timeNow">0:00.0</span><span>&nbsp;/&nbsp;</span><span id="timeTotal">0:00.0</span></div>
+    </div>
+  </section>
+
+  <!-- Stage -->
+  <div class="stage-wrap">
+    <div class="stage" id="stage" data-state="empty">
+      <canvas class="wave-canvas" id="waveCanvas"></canvas>
+      <div class="overlays" id="overlays">
+        <div class="drag-rect" id="dragRect"></div>
+        <div class="playhead" id="playhead" style="left: 0;"></div>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 19V6l12-3v13" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="6" cy="19" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+        <div class="title">Drop an audio file to begin</div>
+        <div class="sub">MP3, WAV, FLAC, M4A, OGG · or use the button below</div>
+        <button class="btn btn--secondary btn--small browse" id="browseBtn">Browse files</button>
+        <input class="file-input" id="fileInput" type="file" accept="audio/*">
+      </div>
+    </div>
+
+    <div class="sections-strip" id="sectionsStrip">
+      <span class="strip-label">Sections</span>
+      <span class="empty-hint" id="sectionsEmpty">switch to Section tool and drag on the waveform</span>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <section class="notes" id="notes" data-state="empty">
+    <div class="notes-head">
+      <div class="notes-title" id="notesTitle">
+        <span class="pip"></span>
+        <span class="text">No selection</span>
+        <span class="meta" id="notesMeta"></span>
+      </div>
+      <div class="notes-actions">
+        <button class="btn btn--secondary btn--small" id="renameBtn">Rename</button>
+        <button class="btn btn--danger btn--small" id="deleteBtn">Delete</button>
+      </div>
+    </div>
+    <textarea class="notes-textarea" id="notesText" placeholder="Click a marker, section, or the loop region to add notes…" disabled></textarea>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ═════════════════════════════════════════════════════════════════════════
+   STATE
+   ═════════════════════════════════════════════════════════════════════════ */
+const State = {
+  audioCtx: null,
+  buffer: null,
+  fileName: '',
+  songName: '',
+  bpm: null,
+  key: '',
+  duration: 0,
+
+  sections: [], // {id, start, end, label, color}
+  loop: null,   // {start, end, notes}
+  markers: [],  // {id, time, notes}
+
+  selection: null, // {type: 'section'|'loop'|'marker', id?}
+
+  tool: 'select',
+
+  // Playback
+  source: null,
+  isPlaying: false,
+  loopPlay: false,         // play only loop region on repeat
+  playStartCtxTime: 0,     // audioCtx.currentTime when started
+  playStartOffset: 0,      // buffer offset where started
+  playEndOffset: null,     // null => full duration
+  playLooping: false,      // whether the source has loop=true
+
+  // Rendering
+  peaks: null,
+  dpr: window.devicePixelRatio || 1,
+
+  nextId: 1,
+
+  // Persistence
+  projectId: null,
+  audioBlob: null,        // for upload on first save
+  audioName: null,
+  dirty: false,
+  saving: false,
+};
+
+const SECTION_COLORS = [
+  '#6366F1', '#10B981', '#F59E0B', '#EF4444',
+  '#0EA5E9', '#8B5CF6', '#EC4899', '#84CC16',
+];
+
+const dom = {};
+['stage','waveCanvas','overlays','dropzone','dragRect','playhead','sectionsStrip','sectionsEmpty',
+ 'songName','bpmInput','detectBpm','keyInput','timeNow','timeTotal','btnPlay','playIcon','btnLoopMode',
+ 'notes','notesTitle','notesMeta','notesText','renameBtn','deleteBtn','fileInput','browseBtn','toast',
+ 'btnSave','saveStatus']
+.forEach(id => { dom[id] = document.getElementById(id); });
+
+/* ═════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═════════════════════════════════════════════════════════════════════════ */
+const uid = () => `id-${State.nextId++}`;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+function fmtTime(secs) {
+  if (!isFinite(secs) || secs < 0) secs = 0;
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  const t = Math.floor((secs * 10) % 10);
+  return `${m}:${s.toString().padStart(2,'0')}.${t}`;
+}
+
+function showToast(msg, ms = 2200) {
+  dom.toast.textContent = msg;
+  dom.toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => dom.toast.classList.remove('show'), ms);
+}
+
+function timeFromX(x) {
+  const w = dom.stage.clientWidth;
+  return clamp(x / w, 0, 1) * State.duration;
+}
+function xFromTime(t) {
+  const w = dom.stage.clientWidth;
+  return (t / State.duration) * w;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   FILE LOADING
+   ═════════════════════════════════════════════════════════════════════════ */
+function ensureAudioCtx() {
+  if (!State.audioCtx) State.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (State.audioCtx.state === 'suspended') State.audioCtx.resume();
+}
+
+async function loadFile(file, opts = {}) {
+  if (!file) return;
+  ensureAudioCtx();
+  if (!opts.silent) showToast(`Loading "${file.name || 'audio'}"…`, 1200);
+
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    // Keep a fresh copy of the bytes for upload (decodeAudioData detaches the original)
+    State.audioBlob = new Blob([arrayBuf.slice(0)], { type: file.type || 'audio/*' });
+    State.audioName = file.name || 'audio';
+
+    const audio = await State.audioCtx.decodeAudioData(arrayBuf);
+    State.buffer = audio;
+    State.duration = audio.duration;
+    State.fileName = file.name || '';
+
+    if (!State.songName && file.name) {
+      State.songName = file.name.replace(/\.[^.]+$/, '');
+      dom.songName.value = State.songName;
+    }
+
+    dom.stage.dataset.state = 'loaded';
+    dom.btnPlay.disabled = false;
+    dom.btnLoopMode.disabled = false;
+    dom.detectBpm.disabled = false;
+    dom.btnSave.disabled = false;
+    dom.timeTotal.textContent = fmtTime(State.duration);
+
+    if (!opts.preserveAnnotations) {
+      State.sections = [];
+      State.loop = null;
+      State.markers = [];
+      State.selection = null;
+    }
+
+    State.peaks = computePeaks(audio, 4000);
+    drawWaveform();
+    renderOverlays();
+    renderSectionsStrip();
+    updateNotesPanel();
+
+    if (opts.autoDetectBpm !== false) setTimeout(() => detectBPM(), 50);
+    if (!opts.silent) markDirty();
+  } catch (err) {
+    console.error(err);
+    showToast(`Could not decode: ${err.message || err}`, 4000);
+  }
+}
+
+dom.fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+dom.browseBtn.addEventListener('click', () => dom.fileInput.click());
+
+['dragenter','dragover'].forEach(evt => {
+  document.addEventListener(evt, e => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+      e.preventDefault();
+      dom.stage.dataset.dragging = 'true';
+    }
+  });
+});
+['dragleave','drop'].forEach(evt => {
+  document.addEventListener(evt, e => {
+    e.preventDefault();
+    dom.stage.dataset.dragging = 'false';
+  });
+});
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PEAKS + WAVEFORM RENDERING
+   ═════════════════════════════════════════════════════════════════════════ */
+function computePeaks(audioBuf, columns) {
+  const ch0 = audioBuf.getChannelData(0);
+  const ch1 = audioBuf.numberOfChannels > 1 ? audioBuf.getChannelData(1) : null;
+  const len = ch0.length;
+  const step = Math.max(1, Math.floor(len / columns));
+  const peaks = new Float32Array(columns * 2); // [min0,max0, min1,max1...]
+  for (let c = 0; c < columns; c++) {
+    const start = c * step;
+    const end = Math.min(start + step, len);
+    let mn = 1, mx = -1;
+    for (let i = start; i < end; i++) {
+      const a = ch0[i];
+      const b = ch1 ? (a + ch1[i]) * 0.5 : a;
+      if (b < mn) mn = b;
+      if (b > mx) mx = b;
+    }
+    peaks[c*2]   = mn;
+    peaks[c*2+1] = mx;
+  }
+  return peaks;
+}
+
+function drawWaveform() {
+  const canvas = dom.waveCanvas;
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  const dpr = State.dpr;
+  canvas.width  = Math.max(1, Math.floor(cssW * dpr));
+  canvas.height = Math.max(1, Math.floor(cssH * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  if (!State.peaks) return;
+
+  const peaks = State.peaks;
+  const cols = peaks.length / 2;
+  const mid = cssH / 2;
+
+  // Center axis
+  ctx.strokeStyle = '#E8E8EC';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(cssW, mid);
+  ctx.stroke();
+
+  // Waveform
+  ctx.strokeStyle = '#0A0A0A';
+  ctx.fillStyle   = '#0A0A0A';
+  ctx.beginPath();
+
+  const colW = cssW / cols;
+  for (let c = 0; c < cols; c++) {
+    const x = c * colW;
+    const mn = peaks[c*2];
+    const mx = peaks[c*2+1];
+    const y1 = mid - mx * (cssH * 0.45);
+    const y2 = mid - mn * (cssH * 0.45);
+    ctx.moveTo(x, y1);
+    ctx.lineTo(x, y2 < y1 + 1 ? y1 + 1 : y2);
+  }
+  ctx.lineWidth = Math.max(1, colW * 0.7);
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   BPM DETECTION (energy peaks + autocorrelation)
+   ═════════════════════════════════════════════════════════════════════════ */
+function detectBPM() {
+  if (!State.buffer) return;
+  showToast('Analyzing tempo…', 1200);
+
+  const buf = State.buffer;
+  const sr = buf.sampleRate;
+  const ch = buf.getChannelData(0);
+
+  // Build envelope: RMS over ~10ms windows
+  const winSize = Math.floor(sr * 0.01);
+  const envLen = Math.floor(ch.length / winSize);
+  const env = new Float32Array(envLen);
+  for (let i = 0; i < envLen; i++) {
+    let s = 0;
+    const start = i * winSize;
+    for (let j = 0; j < winSize; j++) s += ch[start + j] * ch[start + j];
+    env[i] = Math.sqrt(s / winSize);
+  }
+
+  // Onset detection: positive flux of envelope
+  const flux = new Float32Array(envLen);
+  for (let i = 1; i < envLen; i++) {
+    const d = env[i] - env[i-1];
+    flux[i] = d > 0 ? d : 0;
+  }
+
+  // Normalize flux
+  let mx = 0;
+  for (let i = 0; i < envLen; i++) if (flux[i] > mx) mx = flux[i];
+  if (mx > 0) for (let i = 0; i < envLen; i++) flux[i] /= mx;
+
+  // Autocorrelate flux for lags corresponding to 60..200 BPM
+  const envHz = sr / winSize;            // env frames per second
+  const minLag = Math.floor(envHz * 60 / 200); // 200 BPM
+  const maxLag = Math.floor(envHz * 60 / 60);  // 60 BPM
+  let bestLag = minLag, bestCorr = -Infinity;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let c = 0;
+    for (let i = 0; i + lag < envLen; i++) c += flux[i] * flux[i + lag];
+    if (c > bestCorr) { bestCorr = c; bestLag = lag; }
+  }
+
+  let bpm = 60 * envHz / bestLag;
+  // Fold into 70..180 range
+  while (bpm < 70) bpm *= 2;
+  while (bpm > 180) bpm /= 2;
+
+  State.bpm = Math.round(bpm * 10) / 10;
+  dom.bpmInput.value = State.bpm;
+  showToast(`Detected ${State.bpm} BPM`, 1600);
+  markDirty();
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   OVERLAYS RENDERING
+   ═════════════════════════════════════════════════════════════════════════ */
+function renderOverlays() {
+  // Remove all overlays except dragRect + playhead
+  Array.from(dom.overlays.children).forEach(child => {
+    if (child !== dom.dragRect && child !== dom.playhead) child.remove();
+  });
+
+  if (!State.buffer) return;
+
+  // Sections
+  State.sections.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'section-region' + (isSelected('section', s.id) ? ' selected' : '');
+    el.style.setProperty('--accent', s.color);
+    el.style.left  = `${xFromTime(s.start)}px`;
+    el.style.width = `${xFromTime(s.end) - xFromTime(s.start)}px`;
+    el.dataset.id = s.id;
+    el.dataset.type = 'section';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = s.label;
+    el.appendChild(lbl);
+
+    const hL = document.createElement('div'); hL.className = 'handle left';  hL.dataset.handle = 'left';
+    const hR = document.createElement('div'); hR.className = 'handle right'; hR.dataset.handle = 'right';
+    el.appendChild(hL); el.appendChild(hR);
+
+    dom.overlays.appendChild(el);
+  });
+
+  // Loop
+  if (State.loop) {
+    const el = document.createElement('div');
+    el.className = 'loop-region' + (isSelected('loop') ? ' selected' : '');
+    el.style.left  = `${xFromTime(State.loop.start)}px`;
+    el.style.width = `${xFromTime(State.loop.end) - xFromTime(State.loop.start)}px`;
+    el.dataset.type = 'loop';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = 'Loop';
+    el.appendChild(lbl);
+
+    const hL = document.createElement('div'); hL.className = 'handle left';  hL.dataset.handle = 'left';
+    const hR = document.createElement('div'); hR.className = 'handle right'; hR.dataset.handle = 'right';
+    el.appendChild(hL); el.appendChild(hR);
+    dom.overlays.appendChild(el);
+  }
+
+  // Markers
+  State.markers.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'marker' + (isSelected('marker', m.id) ? ' selected' : '');
+    el.style.left = `${xFromTime(m.time)}px`;
+    el.dataset.id = m.id;
+    el.dataset.type = 'marker';
+    el.title = `${fmtTime(m.time)}${m.notes ? ' · ' + m.notes.slice(0,40) : ''}`;
+    dom.overlays.appendChild(el);
+  });
+}
+
+function isSelected(type, id) {
+  if (!State.selection) return false;
+  if (State.selection.type !== type) return false;
+  if (id == null) return true;
+  return State.selection.id === id;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   TOOL SWITCHING
+   ═════════════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTool(btn.dataset.tool));
+});
+function setTool(tool) {
+  State.tool = tool;
+  document.querySelectorAll('.tool-btn').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.tool === tool ? 'true' : 'false');
+  });
+  // Cursor
+  dom.stage.classList.remove('cursor-crosshair','cursor-pointer','cursor-default');
+  if (tool === 'section' || tool === 'loop') dom.stage.classList.add('cursor-crosshair');
+  else if (tool === 'marker') dom.stage.classList.add('cursor-pointer');
+  else dom.stage.classList.add('cursor-default');
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   STAGE INTERACTIONS
+   ═════════════════════════════════════════════════════════════════════════ */
+let drag = null;
+
+dom.stage.addEventListener('mousedown', e => {
+  if (!State.buffer) return;
+  if (e.button !== 0) return;
+
+  const rect = dom.stage.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const startTime = timeFromX(x);
+
+  // Click on existing overlay element
+  const target = e.target;
+  if (target !== dom.stage && target !== dom.waveCanvas) {
+    const overlayEl = target.closest('[data-type]');
+    if (overlayEl) {
+      const type = overlayEl.dataset.type;
+      const handleSide = target.dataset.handle;
+
+      if (handleSide && (type === 'section' || type === 'loop')) {
+        // Resize
+        const id = overlayEl.dataset.id;
+        const obj = type === 'section' ? State.sections.find(s => s.id === id) : State.loop;
+        if (obj) {
+          drag = { kind: 'resize', type, id, side: handleSide, obj, origStart: obj.start, origEnd: obj.end };
+          return;
+        }
+      }
+
+      // Select on mousedown; if it's a section/loop body, allow drag-to-move
+      if (type === 'section' || type === 'loop' || type === 'marker') {
+        const id = overlayEl.dataset.id;
+        select(type, id);
+        if (type === 'marker') {
+          const m = State.markers.find(mk => mk.id === id);
+          if (m) drag = { kind: 'move-marker', obj: m, downX: x, downTime: startTime, origTime: m.time };
+        } else {
+          const obj = type === 'section' ? State.sections.find(s => s.id === id) : State.loop;
+          if (obj) drag = { kind: 'move-region', type, obj, downTime: startTime, origStart: obj.start, origEnd: obj.end };
+        }
+        return;
+      }
+    }
+  }
+
+  // Empty click on canvas
+  if (State.tool === 'section') {
+    drag = { kind: 'create-section', startTime, endTime: startTime };
+    showDragRect(startTime, startTime, '#6366F1');
+  } else if (State.tool === 'loop') {
+    drag = { kind: 'create-loop', startTime, endTime: startTime };
+    showDragRect(startTime, startTime, '#6366F1');
+  } else if (State.tool === 'marker') {
+    addMarker(startTime);
+  } else {
+    // Select tool: seek
+    seekTo(startTime);
+    select(null);
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const rect = dom.stage.getBoundingClientRect();
+  const x = clamp(e.clientX - rect.left, 0, dom.stage.clientWidth);
+  const t = timeFromX(x);
+
+  if (drag.kind === 'create-section' || drag.kind === 'create-loop') {
+    drag.endTime = t;
+    showDragRect(drag.startTime, drag.endTime, '#6366F1');
+  } else if (drag.kind === 'resize') {
+    if (drag.side === 'left')  drag.obj.start = clamp(t, 0, drag.obj.end - 0.05);
+    else                       drag.obj.end   = clamp(t, drag.obj.start + 0.05, State.duration);
+    renderOverlays();
+  } else if (drag.kind === 'move-region') {
+    let dt = t - drag.downTime;
+    const len = drag.origEnd - drag.origStart;
+    let newStart = clamp(drag.origStart + dt, 0, State.duration - len);
+    drag.obj.start = newStart;
+    drag.obj.end = newStart + len;
+    renderOverlays();
+  } else if (drag.kind === 'move-marker') {
+    let dt = t - drag.downTime;
+    drag.obj.time = clamp(drag.origTime + dt, 0, State.duration);
+    renderOverlays();
+  }
+});
+
+window.addEventListener('mouseup', e => {
+  if (!drag) return;
+  const finished = drag;
+  drag = null;
+  hideDragRect();
+
+  if (finished.kind === 'create-section') {
+    const a = Math.min(finished.startTime, finished.endTime);
+    const b = Math.max(finished.startTime, finished.endTime);
+    if (b - a < 0.2) return; // ignore tiny accidental drags
+    const label = promptLabel(['Intro','Verse','Pre-chorus','Chorus','Bridge','Solo','Outro']);
+    if (!label) return;
+    const id = uid();
+    const color = SECTION_COLORS[State.sections.length % SECTION_COLORS.length];
+    State.sections.push({ id, start: a, end: b, label, color, notes: '' });
+    select('section', id);
+    renderOverlays();
+    renderSectionsStrip();
+    updateNotesPanel();
+    markDirty();
+  } else if (finished.kind === 'create-loop') {
+    const a = Math.min(finished.startTime, finished.endTime);
+    const b = Math.max(finished.startTime, finished.endTime);
+    if (b - a < 0.2) return;
+    State.loop = { start: a, end: b, notes: '' };
+    select('loop');
+    renderOverlays();
+    updateNotesPanel();
+    markDirty();
+  } else if (finished.kind === 'resize' || finished.kind === 'move-region' || finished.kind === 'move-marker') {
+    markDirty();
+  }
+});
+
+function showDragRect(t1, t2, color) {
+  const a = Math.min(t1, t2), b = Math.max(t1, t2);
+  dom.dragRect.style.display = 'block';
+  dom.dragRect.style.left  = `${xFromTime(a)}px`;
+  dom.dragRect.style.width = `${xFromTime(b) - xFromTime(a)}px`;
+  dom.dragRect.style.color = color;
+}
+function hideDragRect() { dom.dragRect.style.display = 'none'; }
+
+function promptLabel(suggestions) {
+  const list = suggestions.join(', ');
+  const v = window.prompt(`Section name (suggestions: ${list}):`, suggestions[0]);
+  return v && v.trim();
+}
+
+function addMarker(time) {
+  const m = { id: uid(), time, notes: '' };
+  State.markers.push(m);
+  State.markers.sort((a,b) => a.time - b.time);
+  select('marker', m.id);
+  renderOverlays();
+  updateNotesPanel();
+  markDirty();
+  setTimeout(() => dom.notesText.focus(), 30);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SELECTION + NOTES
+   ═════════════════════════════════════════════════════════════════════════ */
+function select(type, id) {
+  State.selection = type ? { type, id } : null;
+  renderOverlays();
+  renderSectionsStrip();
+  updateNotesPanel();
+}
+
+function getSelectedObject() {
+  if (!State.selection) return null;
+  if (State.selection.type === 'section') return State.sections.find(s => s.id === State.selection.id);
+  if (State.selection.type === 'loop') return State.loop;
+  if (State.selection.type === 'marker') return State.markers.find(m => m.id === State.selection.id);
+  return null;
+}
+
+function updateNotesPanel() {
+  const obj = getSelectedObject();
+  if (!obj) {
+    dom.notes.dataset.state = 'empty';
+    dom.notesTitle.classList.remove('section');
+    dom.notesTitle.querySelector('.pip').style.background = '#9C9C9C';
+    dom.notesTitle.querySelector('.text').textContent = 'No selection';
+    dom.notesMeta.textContent = '';
+    dom.notesText.value = '';
+    dom.notesText.disabled = true;
+    return;
+  }
+  dom.notes.dataset.state = 'active';
+  dom.notesText.disabled = false;
+  dom.notesText.value = obj.notes || '';
+
+  const pip = dom.notesTitle.querySelector('.pip');
+  const text = dom.notesTitle.querySelector('.text');
+
+  if (State.selection.type === 'section') {
+    dom.notesTitle.classList.add('section');
+    pip.style.background = obj.color;
+    text.textContent = obj.label;
+    dom.notesMeta.textContent = `${fmtTime(obj.start)}–${fmtTime(obj.end)} · ${fmtTime(obj.end - obj.start)}`;
+  } else if (State.selection.type === 'loop') {
+    dom.notesTitle.classList.remove('section');
+    pip.style.background = '#6366F1';
+    text.textContent = 'Loop region';
+    dom.notesMeta.textContent = `${fmtTime(obj.start)}–${fmtTime(obj.end)} · ${fmtTime(obj.end - obj.start)}`;
+  } else {
+    dom.notesTitle.classList.remove('section');
+    pip.style.background = '#6366F1';
+    text.textContent = `Marker @ ${fmtTime(obj.time)}`;
+    dom.notesMeta.textContent = '';
+  }
+}
+
+dom.notesText.addEventListener('input', () => {
+  const obj = getSelectedObject();
+  if (obj) {
+    obj.notes = dom.notesText.value;
+    if (State.selection.type === 'marker') {
+      // refresh tooltip
+      const el = dom.overlays.querySelector(`[data-id="${State.selection.id}"]`);
+      if (el) el.title = `${fmtTime(obj.time)}${obj.notes ? ' · ' + obj.notes.slice(0,40) : ''}`;
+    }
+    markDirty();
+  }
+});
+
+dom.deleteBtn.addEventListener('click', deleteSelection);
+function deleteSelection() {
+  if (!State.selection) return;
+  const t = State.selection.type;
+  if (t === 'section') {
+    State.sections = State.sections.filter(s => s.id !== State.selection.id);
+  } else if (t === 'loop') {
+    State.loop = null;
+    if (State.loopPlay) toggleLoopMode(false);
+  } else if (t === 'marker') {
+    State.markers = State.markers.filter(m => m.id !== State.selection.id);
+  }
+  State.selection = null;
+  renderOverlays();
+  renderSectionsStrip();
+  updateNotesPanel();
+  markDirty();
+}
+
+dom.renameBtn.addEventListener('click', () => {
+  const obj = getSelectedObject();
+  if (!obj) return;
+  if (State.selection.type === 'section') {
+    const v = window.prompt('Rename section:', obj.label);
+    if (v && v.trim()) {
+      obj.label = v.trim();
+      renderOverlays();
+      renderSectionsStrip();
+      updateNotesPanel();
+      markDirty();
+    }
+  } else if (State.selection.type === 'loop') {
+    showToast('Loop region uses a fixed label', 1600);
+  } else {
+    showToast('Markers don’t have names — use the notes field', 2000);
+  }
+});
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SECTIONS STRIP
+   ═════════════════════════════════════════════════════════════════════════ */
+function renderSectionsStrip() {
+  dom.sectionsStrip.querySelectorAll('.chip').forEach(c => c.remove());
+  dom.sectionsEmpty.style.display = State.sections.length ? 'none' : 'inline';
+  const sorted = [...State.sections].sort((a,b) => a.start - b.start);
+  sorted.forEach(s => {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (isSelected('section', s.id) ? ' selected' : '');
+    chip.style.setProperty('--accent', s.color);
+    if (!isSelected('section', s.id)) chip.style.color = s.color;
+    chip.innerHTML = `<span class="swatch"></span><span>${escapeHtml(s.label)}</span><span class="time">${fmtTime(s.start)}</span>`;
+    chip.addEventListener('click', () => {
+      select('section', s.id);
+      seekTo(s.start);
+    });
+    dom.sectionsStrip.appendChild(chip);
+  });
+}
+function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PLAYBACK
+   ═════════════════════════════════════════════════════════════════════════ */
+dom.btnPlay.addEventListener('click', togglePlay);
+dom.btnLoopMode.addEventListener('click', () => toggleLoopMode());
+
+function togglePlay() {
+  if (!State.buffer) return;
+  if (State.isPlaying) stop();
+  else play();
+}
+
+function play(fromTime) {
+  if (!State.buffer) return;
+  ensureAudioCtx();
+  if (State.source) try { State.source.stop(); } catch {}
+
+  const src = State.audioCtx.createBufferSource();
+  src.buffer = State.buffer;
+  src.connect(State.audioCtx.destination);
+
+  let offset;
+  let endOffset = null;
+  let useLoop = false;
+
+  if (State.loopPlay && State.loop) {
+    src.loop = true;
+    src.loopStart = State.loop.start;
+    src.loopEnd = State.loop.end;
+    useLoop = true;
+    // Start from current playhead if inside loop, else from loop start
+    if (fromTime != null) offset = fromTime;
+    else {
+      const ph = currentPlayheadTime();
+      offset = (ph >= State.loop.start && ph <= State.loop.end) ? ph : State.loop.start;
+    }
+  } else {
+    offset = fromTime != null ? fromTime : (currentPlayheadTime() || 0);
+    if (offset >= State.duration - 0.01) offset = 0;
+  }
+
+  src.onended = () => {
+    if (State.source !== src) return;
+    State.isPlaying = false;
+    State.source = null;
+    State.playStartOffset = State.duration;
+    State.playStartCtxTime = State.audioCtx.currentTime;
+    updatePlayBtn();
+    setPlayheadX(xFromTime(State.duration));
+    dom.timeNow.textContent = fmtTime(State.duration);
+  };
+
+  src.start(0, offset);
+  State.source = src;
+  State.isPlaying = true;
+  State.playStartCtxTime = State.audioCtx.currentTime;
+  State.playStartOffset = offset;
+  State.playEndOffset = endOffset;
+  State.playLooping = useLoop;
+
+  updatePlayBtn();
+  requestAnimationFrame(updatePlayhead);
+}
+
+function stop() {
+  if (State.source) { try { State.source.stop(); } catch {} State.source = null; }
+  State.isPlaying = false;
+  // Freeze playhead at current time
+  const t = currentPlayheadTime();
+  State.playStartOffset = t;
+  State.playStartCtxTime = State.audioCtx ? State.audioCtx.currentTime : 0;
+  updatePlayBtn();
+  setPlayheadX(xFromTime(t));
+}
+
+function currentPlayheadTime() {
+  if (!State.audioCtx || !State.buffer) return 0;
+  if (!State.isPlaying) return State.playStartOffset || 0;
+  const elapsed = State.audioCtx.currentTime - State.playStartCtxTime;
+  let t = State.playStartOffset + elapsed;
+  if (State.playLooping && State.loop) {
+    const len = State.loop.end - State.loop.start;
+    if (len > 0 && t > State.loop.end) {
+      const over = (t - State.loop.start) % len;
+      t = State.loop.start + over;
+    }
+  } else if (t > State.duration) t = State.duration;
+  return t;
+}
+
+function updatePlayhead() {
+  const t = currentPlayheadTime();
+  setPlayheadX(xFromTime(t));
+  dom.timeNow.textContent = fmtTime(t);
+  if (State.isPlaying) requestAnimationFrame(updatePlayhead);
+}
+
+function setPlayheadX(px) {
+  dom.playhead.style.left = `${px}px`;
+}
+
+function updatePlayBtn() {
+  if (State.isPlaying) {
+    dom.playIcon.innerHTML = '<rect x="4" y="3" width="3" height="10"/><rect x="9" y="3" width="3" height="10"/>';
+    dom.btnPlay.title = 'Pause (Space)';
+  } else {
+    dom.playIcon.innerHTML = '<path d="M4 3l9 5-9 5z"/>';
+    dom.btnPlay.title = 'Play (Space)';
+  }
+}
+
+function toggleLoopMode(force) {
+  const next = (typeof force === 'boolean') ? force : !State.loopPlay;
+  if (next && !State.loop) { showToast('Set a loop region first', 1800); return; }
+  State.loopPlay = next;
+  dom.btnLoopMode.classList.toggle('active', State.loopPlay);
+  if (State.isPlaying) {
+    // Restart with new loop setting
+    play(currentPlayheadTime());
+  }
+}
+
+function seekTo(t) {
+  const wasPlaying = State.isPlaying;
+  if (wasPlaying) stop();
+  State.playStartOffset = clamp(t, 0, State.duration);
+  if (State.audioCtx) State.playStartCtxTime = State.audioCtx.currentTime;
+  setPlayheadX(xFromTime(State.playStartOffset));
+  dom.timeNow.textContent = fmtTime(State.playStartOffset);
+  if (wasPlaying) play(t);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+   METADATA INPUTS
+   ═════════════════════════════════════════════════════════════════════════ */
+dom.songName.addEventListener('input', e => { State.songName = e.target.value; markDirty(); });
+dom.bpmInput.addEventListener('input', e => { State.bpm = parseFloat(e.target.value) || null; markDirty(); });
+dom.keyInput.addEventListener('change', e => { State.key = e.target.value; markDirty(); });
+dom.detectBpm.addEventListener('click', detectBPM);
+
+/* ═════════════════════════════════════════════════════════════════════════
+   PERSISTENCE
+   ═════════════════════════════════════════════════════════════════════════ */
+function setSaveStatus(state, text) {
+  dom.saveStatus.classList.remove('dirty','saving','saved');
+  if (state) dom.saveStatus.classList.add(state);
+  dom.saveStatus.textContent = text || '';
+}
+
+function markDirty() {
+  if (!State.buffer) return;
+  State.dirty = true;
+  setSaveStatus('dirty', 'Unsaved changes');
+}
+
+function serializeProject() {
+  return {
+    songName: State.songName || '',
+    bpm: State.bpm,
+    key: State.key || '',
+    duration: State.duration,
+    sections: State.sections.map(s => ({ id: s.id, start: s.start, end: s.end, label: s.label, color: s.color, notes: s.notes || '' })),
+    loop: State.loop ? { start: State.loop.start, end: State.loop.end, notes: State.loop.notes || '' } : null,
+    markers: State.markers.map(m => ({ id: m.id, time: m.time, notes: m.notes || '' })),
+    nextId: State.nextId,
+  };
+}
+
+async function saveProject() {
+  if (!State.buffer || State.saving) return;
+  State.saving = true;
+  setSaveStatus('saving', 'Saving…');
+
+  try {
+    let res;
+    if (!State.projectId) {
+      // First save → multipart upload (audio + metadata)
+      if (!State.audioBlob) {
+        throw new Error('Audio data missing — reload the file');
+      }
+      const fd = new FormData();
+      fd.append('metadata', JSON.stringify(serializeProject()));
+      fd.append('audio', State.audioBlob, State.audioName || 'audio');
+      res = await fetch('/api/projects', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      State.projectId = data.id;
+      // Reflect in URL without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', data.id);
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      // Update — JSON only
+      res = await fetch(`/api/projects/${encodeURIComponent(State.projectId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(serializeProject()),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    }
+
+    State.dirty = false;
+    setSaveStatus('saved', 'Saved');
+    setTimeout(() => { if (!State.dirty) setSaveStatus(null, ''); }, 2200);
+  } catch (err) {
+    console.error(err);
+    showToast(`Save failed: ${err.message}`, 4000);
+    setSaveStatus('dirty', 'Unsaved changes');
+  } finally {
+    State.saving = false;
+  }
+}
+
+async function loadProject(projectId) {
+  setSaveStatus('saving', 'Loading…');
+  try {
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const meta = await res.json();
+
+    // Apply metadata (before audio so loadFile preserves annotations)
+    State.songName = meta.songName || '';
+    dom.songName.value = State.songName;
+    State.bpm = meta.bpm || null;
+    dom.bpmInput.value = (State.bpm != null) ? State.bpm : '';
+    State.key = meta.key || '';
+    dom.keyInput.value = State.key;
+
+    State.sections = (meta.sections || []).map(s => ({ ...s }));
+    State.loop = meta.loop ? { ...meta.loop } : null;
+    State.markers = (meta.markers || []).map(m => ({ ...m }));
+    State.nextId = meta.nextId || (Math.max(0, ...State.sections.map(s => parseInt(String(s.id).replace(/\D/g, ''), 10) || 0),
+                                              ...State.markers.map(m => parseInt(String(m.id).replace(/\D/g, ''), 10) || 0)) + 1);
+    State.selection = null;
+
+    if (meta.audioUrl) {
+      const audioRes = await fetch(meta.audioUrl);
+      if (!audioRes.ok) throw new Error(`Audio HTTP ${audioRes.status}`);
+      const blob = await audioRes.blob();
+      // Wrap as a File-like with a name (loadFile reads .arrayBuffer + .name)
+      const fakeFile = new File([blob], meta.audioName || 'audio', { type: blob.type });
+      await loadFile(fakeFile, { silent: true, preserveAnnotations: true, autoDetectBpm: false });
+    }
+
+    State.projectId = projectId;
+    State.dirty = false;
+    setSaveStatus('saved', 'Saved');
+    setTimeout(() => { if (!State.dirty) setSaveStatus(null, ''); }, 1800);
+  } catch (err) {
+    console.error(err);
+    showToast(`Could not load project: ${err.message}`, 4000);
+    setSaveStatus(null, '');
+  }
+}
+
+dom.btnSave.addEventListener('click', saveProject);
+
+window.addEventListener('beforeunload', e => {
+  if (State.dirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+/* ═════════════════════════════════════════════════════════════════════════
+   KEYBOARD
+   ═════════════════════════════════════════════════════════════════════════ */
+window.addEventListener('keydown', e => {
+  // Cmd/Ctrl+S works regardless of focus
+  if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault();
+    saveProject();
+    return;
+  }
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'l' || e.key === 'L') { toggleLoopMode(); }
+  else if (e.key === 'Backspace' || e.key === 'Delete') {
+    if (State.selection) { e.preventDefault(); deleteSelection(); }
+  } else if (e.key === 'Escape') {
+    select(null);
+  } else if (e.key === '1') setTool('select');
+  else if (e.key === '2') setTool('section');
+  else if (e.key === '3') setTool('loop');
+  else if (e.key === '4') setTool('marker');
+});
+
+/* ═════════════════════════════════════════════════════════════════════════
+   RESIZE
+   ═════════════════════════════════════════════════════════════════════════ */
+const ro = new ResizeObserver(() => {
+  if (State.buffer) drawWaveform();
+  renderOverlays();
+  if (!State.isPlaying) setPlayheadX(xFromTime(currentPlayheadTime()));
+});
+ro.observe(dom.stage);
+
+setTool('select');
+
+/* Load existing project if ?id=... is present */
+(function init() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (id) loadProject(id);
+})();
+</script>
+
+</body>
+</html>

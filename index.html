@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Dissector</title>
+
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@700,600,500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --primary:        #6366F1;
+  --primary-hover:  #4F46E5;
+  --primary-soft:   rgba(99,102,241,0.12);
+  --primary-glow:   rgba(99,102,241,0.35);
+  --secondary:      #20970B;
+  --neutral:        #9C9C9C;
+  --bg:             #FAFAFA;
+  --surface:        #FFFFFF;
+  --text-primary:   #0A0A0A;
+  --text-secondary: #6B6B6B;
+  --border:         #E8E8EC;
+  --error:          #EF4444;
+
+  --font-display: 'General Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-body:    'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-card-hover: 0 8px 30px rgba(0,0,0,0.08);
+  --shadow-primary:    0 4px 12px var(--primary-glow);
+  --ring:              0 0 0 3px var(--primary-soft);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; font-size: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ─── Topbar ─────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+.brand .accent { color: var(--secondary); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 14px;
+  height: 38px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: transform 150ms, box-shadow 150ms, background 150ms, border-color 150ms, color 150ms;
+  white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn--primary { background: var(--primary); color: #fff; }
+.btn--primary:hover { background: var(--primary-hover); box-shadow: var(--shadow-primary); }
+.btn--secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); }
+.btn--secondary:hover { border-color: var(--text-primary); }
+.btn--ghost { background: transparent; color: var(--text-secondary); }
+.btn--ghost:hover { color: var(--text-primary); }
+.btn--small { height: 32px; padding: 0 12px; font-size: 13px; }
+.btn--icon-leading svg { width: 14px; height: 14px; }
+
+/* ─── Hero ───────────────────────────────────── */
+.hero {
+  padding: 64px 0 32px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 60px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.hero .sub {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  max-width: 540px;
+  font-size: 16px;
+}
+.hero-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ─── Toolbar/Filter ─────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 24px;
+  flex-wrap: wrap;
+}
+.search {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+  min-width: 220px;
+}
+.search input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px 12px 40px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.search input:focus { border-color: var(--primary); box-shadow: var(--ring); }
+.search svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+.count-readout {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ─── Grid ───────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 200ms, box-shadow 200ms, border-color 200ms;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card-art {
+  height: 140px;
+  position: relative;
+  background: linear-gradient(180deg, #F4F4F7, #ECECEF);
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+.card-art svg { display: block; width: 100%; height: 100%; }
+.card-art .badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(10,10,10,0.85);
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.card-meta .key { font-family: var(--font-mono); color: var(--text-primary); font-weight: 500; }
+.card-meta .bpm { font-family: var(--font-mono); color: var(--text-primary); font-weight: 500; }
+
+.card-stats {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.stats-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--bg);
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.pill svg { width: 11px; height: 11px; }
+
+.updated {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.card .delete {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 150ms, color 150ms, border-color 150ms;
+  z-index: 2;
+}
+.card:hover .delete { opacity: 1; }
+.card .delete:hover { color: var(--error); border-color: var(--error); }
+.card .delete svg { width: 13px; height: 13px; }
+
+/* ─── New project tile ───────────────────────── */
+.card--new {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 32px;
+  min-height: 280px;
+  color: var(--text-secondary);
+  transition: border-color 200ms, color 200ms, transform 200ms, box-shadow 200ms;
+  text-align: center;
+}
+.card--new:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+.card--new .plus {
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 200ms, border-color 200ms;
+}
+.card--new:hover .plus { background: var(--primary-soft); border-color: var(--primary); }
+.card--new .plus svg { width: 18px; height: 18px; }
+.card--new .label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.card--new:hover .label { color: var(--primary); }
+.card--new .hint { font-size: 12px; }
+
+/* ─── Empty state ────────────────────────────── */
+.empty {
+  padding: 80px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+.empty .title { font-family: var(--font-display); font-weight: 600; font-size: 22px; color: var(--text-primary); letter-spacing: -0.02em; margin-bottom: 8px; }
+.empty .sub { margin-bottom: 24px; }
+
+/* ─── Toast ──────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text-primary);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  opacity: 0;
+  transition: opacity 200ms, transform 200ms;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <a class="brand" href="/">Song <span class="accent">Dissector</span></a>
+    <a class="btn btn--primary" href="/editor">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
+      New project
+    </a>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Your projects</h1>
+      <p class="sub">Pick up where you left off, or drop a new track to dissect — sections, loops, and notes save automatically once you load it.</p>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3" stroke-linecap="round"/></svg>
+      <input id="searchInput" type="search" placeholder="Filter by song name or key…" autocomplete="off">
+    </div>
+    <span class="count-readout" id="countReadout"></span>
+  </section>
+
+  <section id="gridSection">
+    <div class="grid" id="grid"></div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+const SECTION_HUES = ['#6366F1','#10B981','#F59E0B','#EF4444','#0EA5E9','#8B5CF6','#EC4899','#84CC16'];
+
+let allProjects = [];
+
+const dom = {
+  grid: document.getElementById('grid'),
+  searchInput: document.getElementById('searchInput'),
+  countReadout: document.getElementById('countReadout'),
+  toast: document.getElementById('toast'),
+  gridSection: document.getElementById('gridSection'),
+};
+
+function showToast(msg, ms = 2000) {
+  dom.toast.textContent = msg;
+  dom.toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => dom.toast.classList.remove('show'), ms);
+}
+
+function fmtRel(iso) {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return '';
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60)         return 'just now';
+  if (diff < 3600)       return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400)      return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 86400 * 7)  return `${Math.floor(diff/86400)}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function fmtDuration(secs) {
+  if (!secs || !isFinite(secs)) return '';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+/* Generate a deterministic mini-waveform SVG for the card art */
+function miniWaveform(seed, color) {
+  const cols = 64;
+  let s = 0;
+  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+  function rand() { s = (s * 1664525 + 1013904223) >>> 0; return (s >>> 8) / 0xFFFFFF; }
+  const W = 100, H = 32, mid = H / 2;
+  const colW = W / cols;
+  let path = '';
+  for (let i = 0; i < cols; i++) {
+    const x = i * colW + colW * 0.5;
+    const env = 0.35 + 0.65 * Math.sin((i / cols) * Math.PI);
+    const h = (rand() * 0.85 + 0.15) * env * (H * 0.42);
+    path += `M${x.toFixed(2)},${(mid - h).toFixed(2)}L${x.toFixed(2)},${(mid + h).toFixed(2)}`;
+  }
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <path d="${path}" stroke="${color}" stroke-width="${(colW * 0.55).toFixed(2)}" stroke-linecap="round" fill="none" opacity="0.55"/>
+      <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="${color}" stroke-width="0.3" opacity="0.3"/>
+    </svg>
+  `;
+}
+
+function pickHue(seed) {
+  let s = 0;
+  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+  return SECTION_HUES[s % SECTION_HUES.length];
+}
+
+function projectCard(p) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  const hue = pickHue(p.id || p.songName || '');
+  const updatedRel = fmtRel(p.updated || p.created);
+
+  card.innerHTML = `
+    <div class="card-art">
+      ${miniWaveform(p.id || p.songName || 'x', hue)}
+      ${p.duration ? `<span class="badge">${fmtDuration(p.duration)}</span>` : ''}
+    </div>
+    <button class="delete" title="Delete project" aria-label="Delete">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6.5 4V2.5h3V4M5 4l.5 9h5L11 4M7 6.5v4M9 6.5v4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="card-body">
+      <div class="card-title"></div>
+      <div class="card-meta">
+        ${p.bpm ? `<span class="bpm">${p.bpm} BPM</span>` : ''}
+        ${p.key ? `<span class="key">${p.key}</span>` : ''}
+      </div>
+      <div class="card-stats">
+        <div class="stats-pills">
+          <span class="pill" title="Sections">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/></svg>
+            ${p.sectionCount || 0}
+          </span>
+          <span class="pill" title="Markers">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5" fill="currentColor"/><circle cx="8" cy="8" r="5.5"/></svg>
+            ${p.markerCount || 0}
+          </span>
+          ${p.hasLoop ? `<span class="pill" title="Has loop">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h6a3 3 0 013 3v4a3 3 0 01-3 3H5a3 3 0 01-3-3V8" stroke-linecap="round"/><path d="M3 5l-1-2 2-1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>` : ''}
+        </div>
+        <span class="updated">${updatedRel}</span>
+      </div>
+    </div>
+  `;
+
+  card.querySelector('.card-title').textContent = p.songName || '(untitled)';
+
+  card.addEventListener('click', e => {
+    if (e.target.closest('.delete')) return;
+    window.location.href = `/editor?id=${encodeURIComponent(p.id)}`;
+  });
+
+  card.querySelector('.delete').addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!confirm(`Delete "${p.songName || '(untitled)'}"?\n\nThis will also delete the audio file. This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(p.id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      allProjects = allProjects.filter(x => x.id !== p.id);
+      render();
+      showToast('Project deleted');
+    } catch (err) {
+      showToast('Could not delete: ' + err.message);
+    }
+  });
+
+  return card;
+}
+
+function newProjectTile() {
+  const tile = document.createElement('a');
+  tile.className = 'card--new';
+  tile.href = '/editor';
+  tile.innerHTML = `
+    <span class="plus">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
+    </span>
+    <span class="label">New project</span>
+    <span class="hint">Drop a new track to dissect</span>
+  `;
+  return tile;
+}
+
+function emptyState() {
+  const div = document.createElement('div');
+  div.className = 'empty';
+  div.innerHTML = `
+    <div class="title">No projects yet</div>
+    <div class="sub">Start your first dissection by loading an audio file into the editor.</div>
+    <a class="btn btn--primary" href="/editor">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10" stroke-linecap="round"/></svg>
+      Open editor
+    </a>
+  `;
+  return div;
+}
+
+function render() {
+  const q = dom.searchInput.value.trim().toLowerCase();
+  const filtered = q
+    ? allProjects.filter(p =>
+        (p.songName || '').toLowerCase().includes(q) ||
+        (p.key || '').toLowerCase().includes(q))
+    : allProjects;
+
+  dom.grid.innerHTML = '';
+
+  if (allProjects.length === 0) {
+    dom.gridSection.innerHTML = '';
+    dom.gridSection.appendChild(emptyState());
+    dom.countReadout.textContent = '';
+    return;
+  }
+
+  dom.gridSection.innerHTML = '<div class="grid" id="grid"></div>';
+  dom.grid = document.getElementById('grid');
+
+  dom.grid.appendChild(newProjectTile());
+  filtered.forEach(p => dom.grid.appendChild(projectCard(p)));
+
+  dom.countReadout.textContent = q
+    ? `${filtered.length} of ${allProjects.length}`
+    : `${allProjects.length} project${allProjects.length === 1 ? '' : 's'}`;
+}
+
+async function loadProjects() {
+  try {
+    const res = await fetch('/api/projects');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    allProjects = await res.json();
+    render();
+  } catch (err) {
+    dom.gridSection.innerHTML = `
+      <div class="empty">
+        <div class="title">Couldn't load projects</div>
+        <div class="sub">${err.message}. Is the server running? Run <code>uvicorn server:app --reload</code> from the demo directory.</div>
+      </div>`;
+  }
+}
+
+dom.searchInput.addEventListener('input', render);
+loadProjects();
+</script>
+
+</body>
+</html>
